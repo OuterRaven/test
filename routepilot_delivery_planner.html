@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#101820">
+<title>RoutePilot — Delivery Planner</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+:root{--ink:#17212b;--muted:#667481;--line:#dfe5e9;--bg:#f3f6f8;--panel:#fff;--accent:#126b58;--accent2:#e5f5ef;--warn:#fff3d7;--shadow:0 10px 30px #17212b12}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{background:#101820;color:#fff;padding:18px 18px 16px;display:flex;align-items:center;gap:12px}
+.logo{width:42px;height:42px;border-radius:13px;background:#d7f7e9;color:#0d5b48;display:grid;place-items:center;font-size:23px;font-weight:900}
+header h1{font-size:19px;margin:0;letter-spacing:-.4px}header p{margin:2px 0 0;color:#b8c4cc;font-size:12px}
+main{max-width:1100px;margin:0 auto;padding:16px;display:grid;gap:14px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:16px;box-shadow:var(--shadow)}
+h2{font-size:16px;margin:0 0 10px;letter-spacing:-.2px}.sub{color:var(--muted);font-size:13px;margin:-4px 0 12px}
+textarea,input{width:100%;font:inherit;border:1px solid #ccd5db;border-radius:12px;padding:12px;background:#fff;color:var(--ink);outline:none}
+textarea:focus,input:focus{border-color:var(--accent);box-shadow:0 0 0 3px #126b5818}
+textarea{min-height:145px;resize:vertical;line-height:1.5}
+label{display:block;font-size:12px;font-weight:700;color:#53616c;margin:10px 0 6px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+button{font:inherit;font-weight:700;border:0;border-radius:12px;padding:12px 14px;cursor:pointer;min-height:44px}
+.primary{background:var(--accent);color:#fff;width:100%;margin-top:12px}.secondary{background:#edf2f4;color:#25333c}.small{padding:7px 10px;min-height:34px;font-size:12px;border-radius:9px}
+button:disabled{opacity:.5;cursor:wait}
+.status{font-size:13px;color:var(--muted);margin-top:10px;min-height:20px}.status.error{color:#a12d2d}.status.good{color:var(--accent)}
+.notice{font-size:12px;background:#f5f8fa;border:1px solid var(--line);padding:10px 12px;border-radius:12px;color:#566570;margin-top:12px}
+.work{display:grid;gap:14px}.mapwrap{overflow:hidden;border:1px solid var(--line);border-radius:18px;background:#e7edf0;box-shadow:var(--shadow)}#map{height:380px;width:100%;z-index:1}
+.maphead{background:white;padding:13px 15px;display:flex;justify-content:space-between;align-items:center;gap:10px}.maphead strong{font-size:14px}.maphead span{font-size:12px;color:var(--muted)}
+.metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}.metric{border:1px solid var(--line);border-radius:12px;padding:10px;background:#fbfcfd}.metric b{display:block;font-size:18px;letter-spacing:-.5px}.metric span{font-size:11px;color:var(--muted)}
+.stoplist{display:grid;gap:8px}.stop{display:grid;grid-template-columns:32px 1fr auto;align-items:center;gap:10px;border:1px solid var(--line);padding:10px;border-radius:13px;background:white}.num{width:30px;height:30px;border-radius:50%;background:var(--accent2);color:var(--accent);display:grid;place-items:center;font-weight:800;font-size:13px}.address{font-size:13px;font-weight:650;overflow-wrap:anywhere}.secondaryline{font-size:11px;color:var(--muted);margin-top:3px}.controls{display:flex;gap:5px}.controls button{padding:5px 8px;min-height:30px;background:#f0f3f5;border-radius:8px}
+.bottomrow{display:flex;gap:8px;margin-top:12px}.bottomrow button{flex:1}.empty{padding:18px;border:1px dashed #cbd5dc;border-radius:12px;color:var(--muted);font-size:13px;text-align:center}
+footer{max-width:1100px;margin:0 auto;padding:0 16px 24px;color:#697782;font-size:11px}
+.leaflet-popup-content{font-size:13px}
+@media(min-width:800px){main{grid-template-columns:380px minmax(0,1fr);align-items:start;padding:22px}.left{display:grid;gap:14px}.work{position:sticky;top:12px}.panel{padding:18px}#map{height:min(58vh,600px)}}
+@media(max-width:420px){main{padding:10px}.panel{padding:13px}header{padding:14px}.grid2{gap:7px}.metrics{gap:6px}.metric{padding:8px}.metric b{font-size:16px}#map{height:320px}}
+</style>
+</head>
+<body>
+<header><div class="logo">↗</div><div><h1>RoutePilot</h1><p>Delivery route planner · mobile-first prototype</p></div></header>
+<main>
+<section class="left">
+ <div class="panel">
+  <h2>1. Add your stops</h2>
+  <p class="sub">Paste one address per line. Include city and province for best matches.</p>
+  <textarea id="addresses" placeholder="123 Main Street, Burnaby, BC&#10;456 Kingsway, Vancouver, BC&#10;789 Austin Avenue, Coquitlam, BC"></textarea>
+  <div class="grid2">
+   <div><label for="start">Starting point (optional)</label><input id="start" placeholder="Depot or first stop"></div>
+   <div><label for="end">Finish at (optional)</label><input id="end" placeholder="Last stop or depot"></div>
+  </div>
+  <button id="plan" class="primary">Find fastest stop order</button>
+  <div id="status" class="status" role="status">Ready when you are.</div>
+  <div class="notice">Prototype note: uses public OpenStreetMap geocoding and a demo routing server. Please test with a small batch; public services have usage limits and no traffic-aware ETA.</div>
+ </div>
+ <div class="panel">
+  <h2>2. Your route</h2>
+  <p class="sub">Use the arrows to adjust the order after optimization.</p>
+  <div id="stops" class="stoplist"><div class="empty">Your stops will appear here.</div></div>
+  <div class="bottomrow"><button id="openMaps" class="secondary" disabled>Open in Google Maps</button><button id="copy" class="secondary" disabled>Copy ordered list</button></div>
+ </div>
+</section>
+<section class="work">
+ <div class="mapwrap"><div class="maphead"><strong>Route map</strong><span id="maplabel">No route yet</span></div><div id="map"></div></div>
+ <div class="panel"><h2>Route summary</h2><p class="sub">Driving distance and duration for the planned route, when the routing service returns them.</p>
+  <div class="metrics"><div class="metric"><b id="count">0</b><span>DELIVERY STOPS</span></div><div class="metric"><b id="distance">—</b><span>DRIVING DISTANCE</span></div><div class="metric"><b id="duration">—</b><span>DRIVING TIME</span></div></div>
+ </div>
+</section>
+</main>
+<footer>RoutePilot is an independent prototype and is not affiliated with Google, OpenStreetMap, or any delivery company. Verify addresses and road restrictions before driving. Do not enter sensitive customer information into a public demo.</footer>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const $=id=>document.getElementById(id);
+let stops=[], routeLayer=null, markers=[], map;
+map=L.map('map').setView([49.25,-123.1],10);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap contributors'}).addTo(map);
+function setStatus(s,kind=''){ $('status').textContent=s; $('status').className='status '+kind; }
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+async function geocode(address){
+ const url='https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=ca&q='+encodeURIComponent(address);
+ const res=await fetch(url,{headers:{'Accept-Language':'en-CA'}});
+ if(!res.ok) throw new Error('Geocoding service returned '+res.status);
+ const data=await res.json();
+ if(!data.length) return null;
+ return {lat:+data[0].lat,lon:+data[0].lon,display:data[0].display_name};
+}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function clearMap(){if(routeLayer){map.removeLayer(routeLayer);routeLayer=null;}markers.forEach(m=>map.removeLayer(m));markers=[];}
+function draw(){
+ clearMap();
+ const pts=stops.filter(s=>s.lat!=null);
+ pts.forEach((s,i)=>{
+  const icon=L.divIcon({className:'',html:`<div style="width:30px;height:30px;border-radius:50%;background:#126b58;color:#fff;border:2px solid white;box-shadow:0 2px 8px #0004;display:grid;place-items:center;font-weight:800;font-size:12px">${i+1}</div>`,iconSize:[30,30],iconAnchor:[15,15]});
+  const m=L.marker([s.lat,s.lon],{icon}).bindPopup(`<b>${i+1}. ${esc(s.address)}</b>`).addTo(map);markers.push(m);
+ });
+ if(pts.length){const bounds=L.latLngBounds(pts.map(s=>[s.lat,s.lon]));map.fitBounds(bounds.pad(.15),{maxZoom:15});}
+ if(routeLayer) routeLayer.addTo(map);
+ $('maplabel').textContent=pts.length?`${pts.length} mapped stop${pts.length===1?'':'s'}`:'No route yet';
+}
+function renderStops(){
+ const box=$('stops');
+ if(!stops.length){box.innerHTML='<div class="empty">Your stops will appear here.</div>';}
+ else box.innerHTML=stops.map((s,i)=>`<div class="stop"><div class="num">${i+1}</div><div><div class="address">${esc(s.address)}</div><div class="secondaryline">${s.display?esc(s.display):s.error?esc(s.error):'Not located yet'}</div></div><div class="controls"><button aria-label="Move up" title="Move up" onclick="moveStop(${i},-1)" ${i===0?'disabled':''}>↑</button><button aria-label="Move down" title="Move down" onclick="moveStop(${i},1)" ${i===stops.length-1?'disabled':''}>↓</button><button aria-label="Remove stop" title="Remove stop" onclick="removeStop(${i})">×</button></div></div>`).join('');
+ $('count').textContent=stops.length;
+ $('copy').disabled=!stops.length;$('openMaps').disabled=!stops.length;
+}
+function updateMetrics(km=null,seconds=null){
+ $('distance').textContent=km==null?'—':km.toFixed(1)+' km';
+ $('duration').textContent=seconds==null?'—':(seconds<3600?Math.round(seconds/60)+' min':Math.floor(seconds/3600)+' h '+Math.round(seconds%3600/60)+' min');
+}
+window.moveStop=(i,d)=>{const j=i+d;if(j<0||j>=stops.length)return;[stops[i],stops[j]]=[stops[j],stops[i]];renderStops();draw();updateMetrics();setStatus('Order changed manually. Recalculate the route to refresh the driving line.');};
+window.removeStop=i=>{stops.splice(i,1);renderStops();draw();updateMetrics();};
+async function optimize(){
+ const raw=$('addresses').value.split(/\n|;/).map(x=>x.trim()).filter(Boolean);
+ const start=$('start').value.trim(),end=$('end').value.trim();
+ if(raw.length<2){setStatus('Paste at least two delivery addresses.','error');return;}
+ if(raw.length>20){setStatus('This prototype supports up to 20 pasted delivery addresses per plan.','error');return;}
+ $('plan').disabled=true;stops=[];routeLayer=null;renderStops();clearMap();updateMetrics();
+ let addresses=[...raw];
+ if(start) addresses.unshift(start);
+ if(end) addresses.push(end);
+ setStatus(`Locating ${addresses.length} addresses…`);
+ try{
+  for(let i=0;i<addresses.length;i++){
+   setStatus(`Locating address ${i+1} of ${addresses.length}…`);
+   const result=await geocode(addresses[i]);
+   stops.push({address:addresses[i],...(result||{}),error:result?null:'Address not found — edit it and try again'});
+   renderStops();
+   if(i<addresses.length-1) await sleep(1050);
+  }
+  const bad=stops.filter(s=>s.lat==null);
+  if(bad.length){setStatus(`${bad.length} address(es) could not be located. Remove or correct them, then optimize again.`,'error');draw();return;}
+  if(stops.length<2){setStatus('Need at least two located points.','error');return;}
+  setStatus('Calculating fastest stop order…');
+  const coords=stops.map(s=>`${s.lon},${s.lat}`).join(';');
+  const sourceMode=start?'first':'any'; const destinationMode=end?'last':'any';
+  const url=`https://router.project-osrm.org/trip/v1/driving/${coords}?roundtrip=false&source=${sourceMode}&destination=${destinationMode}&overview=full&geometries=geojson&steps=false`;
+  const res=await fetch(url);
+  if(!res.ok) throw new Error('Routing service returned '+res.status);
+  const data=await res.json();
+  if(data.code!=='Ok'||!data.trips?.length) throw new Error(data.message||'No route found for these points');
+  // OSRM trip waypoint list is returned in optimized visit order.
+  const originalStops=[...stops]; const orderedStops=[];
+  data.waypoints.forEach((w,originalIndex)=>{orderedStops[w.waypoint_index]=originalStops[originalIndex];});
+  stops=orderedStops.filter(Boolean);
+  // Use route line from returned trip geometry.
+  renderStops();
+  routeLayer=L.geoJSON(data.trips[0].geometry,{style:{color:'#126b58',weight:5,opacity:.85}}).addTo(map);
+  draw();
+  updateMetrics(data.trips[0].distance/1000,data.trips[0].duration);
+  setStatus('Route optimized. Review the order and verify the addresses before driving.','good');
+ }catch(e){setStatus('Could not plan route: '+e.message+'. Try fewer stops or check your connection.','error');}
+ finally{$('plan').disabled=false;map.invalidateSize();}
+}
+$('plan').addEventListener('click',optimize);
+$('openMaps').addEventListener('click',()=>{
+ const pts=stops.filter(s=>s.lat!=null);
+ if(!pts.length)return;
+ const dest=pts[pts.length-1],origin=pts[0],waypoints=pts.slice(1,-1).map(s=>`${s.lat},${s.lon}`).join('|');
+ let url='https://www.google.com/maps/dir/?api=1&travelmode=driving&origin='+encodeURIComponent(`${origin.lat},${origin.lon}`)+'&destination='+encodeURIComponent(`${dest.lat},${dest.lon}`);
+ if(waypoints)url+='&waypoints='+encodeURIComponent(waypoints);
+ window.open(url,'_blank','noopener');
+});
+$('copy').addEventListener('click',async()=>{
+ const text=stops.map((s,i)=>`${i+1}. ${s.address}`).join('\n');
+ try{await navigator.clipboard.writeText(text);setStatus('Ordered stop list copied.','good');}
+ catch(e){const ta=document.createElement('textarea');ta.value=text;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();setStatus('Ordered stop list copied.','good');}
+});
+</script>
+</body>
+</html>
